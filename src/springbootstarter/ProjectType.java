@@ -19,15 +19,6 @@ public enum ProjectType {
         return id;
     }
 
-    static ProjectType find(String id) {
-        for (ProjectType value : values()) {
-            if (value.id.equals(id)) {
-                return value;
-            }
-        }
-        return ProjectType.GRADLE_GROOVY;// fallback to hardcoded default
-    }
-
     @Override
     public String toString() {
         return name;

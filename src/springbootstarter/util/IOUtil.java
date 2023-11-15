@@ -2,7 +2,7 @@ package springbootstarter.util;
 
 import springbootstarter.SpringBootProjectModel;
 import springbootstarter.StandardProjectDependency;
-import springbootstarter.StandardProjectParameters;
+import springbootstarter.StandardProjectParameter;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -51,14 +51,14 @@ public class IOUtil {
 
     public static void downloadProjectFile(SpringBootProjectModel model, File target) throws IOException {
         Map<String, String> arguments = new LinkedHashMap<>();
-        for (Map.Entry<StandardProjectParameters, String> e : model.getParameters().entrySet()) {
+        for (Map.Entry<StandardProjectParameter, String> e : model.getParameters().entrySet()) {
             arguments.put(e.getKey().toString(), URLEncoder.encode(e.getValue(), "UTF-8"));
         }
         Set<StandardProjectDependency> dependencies = model.getDependencies();
         if (!dependencies.isEmpty()) {
             StringJoiner dependencyJoiner = new StringJoiner(",");
             dependencies.forEach(dependency -> dependencyJoiner.add(dependency.getId()));
-            arguments.put(StandardProjectParameters.DEPENDENCIES.toString(), dependencyJoiner.toString());
+            arguments.put(StandardProjectParameter.DEPENDENCIES.toString(), dependencyJoiner.toString());
         }
         StringJoiner joiner = new StringJoiner("&");
         for (Map.Entry<String, String> entry : arguments.entrySet())

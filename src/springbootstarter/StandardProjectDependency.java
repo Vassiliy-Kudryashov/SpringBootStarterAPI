@@ -158,6 +158,10 @@ public enum StandardProjectDependency {
         return category;
     }
 
+    public static StandardProjectDependency find(String id) {
+        return Arrays.stream(values()).filter(d -> d.id.equals(id)).findAny().orElse(null);
+    }
+
     static List<StandardProjectDependency> getDependencies(ProjectDependencyCategory category) {
         return Arrays.stream(values()).filter(d -> d.category == category).collect(Collectors.toList());
     }

@@ -10,20 +10,20 @@ import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringJoiner;
 
 public class SpringBootProjectModel {
     private static final String[][] HEADERS = {{"Rel", "Description", null}, {"Parameter", "Description", "Default value"}, {"Id", "Description", "Required version"}};
 
     private final Map<String, String> descriptionDictionary = new HashMap<>();
-    private final EnumMap<StandardProjectParameters, String> defaults = new EnumMap<>(StandardProjectParameters.class);
+    private final EnumMap<StandardProjectParameter, String> defaults = new EnumMap<>(StandardProjectParameter.class);
     private final Map<String, String> dependencyCompatibility = new LinkedHashMap<>();
 
-    private final EnumMap<StandardProjectParameters, String> parameters = new EnumMap<>(StandardProjectParameters.class);
-    private final EnumSet<StandardProjectDependency> dependencies = EnumSet.noneOf(StandardProjectDependency.class);
-
+    private final EnumMap<StandardProjectParameter, String> parameters = new EnumMap<>(StandardProjectParameter.class);
 
     private SpringBootProjectModel() {
     }
@@ -38,7 +38,10 @@ public class SpringBootProjectModel {
         return descriptionDictionary.get(id);
     }
 
-    public void setParameter(StandardProjectParameters parameter, String value) {
+    public void setParameterValue(StandardProjectParameter parameter, String value) {
+        if (value != null && !parameter.validate(value)) {
+            throw new IllegalArgumentException("'" + value + "' is invalid value for " + parameter);
+        }
         if (value == null || value.equals(defaults.get(parameter))) {
             parameters.remove(parameter);
         } else {
@@ -48,20 +51,40 @@ public class SpringBootProjectModel {
     }
 
     public boolean addDependency(StandardProjectDependency dependency) {
-        dependencies.add(dependency);
+        String dependencies = getParameterValue(StandardProjectParameter.DEPENDENCIES);
+        Set<String> ids = new LinkedHashSet<>();
+        if (dependencies != null && !dependencies.isEmpty()) {
+            ids.addAll(Arrays.asList(dependencies.split(",")));
+        }
+        if (!ids.add(dependency.getId())) {
+            return false;
+        }
+        StringJoiner joiner = new StringJoiner(",");
+        ids.forEach(joiner::add);
+        setParameterValue(StandardProjectParameter.DEPENDENCIES, joiner.toString());
         return true;//todo return compatibility check
     }
 
-    public Map<StandardProjectParameters, String> getParameters() {
+    public Map<StandardProjectParameter, String> getParameters() {
         return Collections.unmodifiableMap(parameters);
     }
 
+    public String getParameterValue(StandardProjectParameter parameter) {
+        return parameters.containsKey(parameter) ? parameters.get(parameter) : defaults.get(parameter);
+    }
+
     public Set<StandardProjectDependency> getDependencies() {
-        return Collections.unmodifiableSet(dependencies);
+        String s = getParameterValue(StandardProjectParameter.DEPENDENCIES);
+        if (s == null || s.isEmpty()) {
+            return Collections.emptySet();
+        }
+        EnumSet<StandardProjectDependency> set = EnumSet.noneOf(StandardProjectDependency.class);
+        Arrays.stream(s.split(",")).forEach(id -> set.add(StandardProjectDependency.find(id)));
+        return Collections.unmodifiableSet(set);
     }
 
     public void setType(ProjectType type) {
-        setParameter(StandardProjectParameters.TYPE, type.getId());
+        setParameterValue(StandardProjectParameter.TYPE, type.getId());
     }
 
     public static SpringBootProjectModel initFromWeb() throws IOException {
@@ -98,7 +121,6 @@ public class SpringBootProjectModel {
                         case 1: { // Project type
                             if (first.endsWith(" *")) {
                                 first = first.substring(0, first.length() - 2);
-                                model.setType(ProjectType.find(first));
                             }
                             String descriptionPart = model.descriptionDictionary.get(first);
                             model.descriptionDictionary.put(first, descriptionPart != null ? descriptionPart + " " + second : second);
@@ -106,7 +128,10 @@ public class SpringBootProjectModel {
                         }
                         case 2: { // Parameters
                             model.descriptionDictionary.put(first, second);
-                            model.defaults.put(StandardProjectParameters.find(first), third);
+                            if ("none".equals(third) || "no base dir".equals(third)) {
+                                third = "";
+                            }
+                            model.defaults.put(StandardProjectParameter.find(first), third);
                             break;
                         }
                         case 3: { // Dependencies

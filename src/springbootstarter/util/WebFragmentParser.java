@@ -18,6 +18,12 @@ public class WebFragmentParser {
     private static final String CATEGORY_END = "</span>";
 
     public static void main(String[] args) throws IOException {
+        // 1. Go to start.spring.io with browser,
+        // 2. Click on "ADD DEPENDENCIES..." button
+        // 3. Right-click menu -> "Inspect"
+        // 4. Find <ul> with full dependencies list
+        // 4. Right-click menu -> Copy > Copy OuterHTML
+        // 5. Save HTML from clipboard to web.fragment.txt
         List<String> lines = Files.readAllLines(new File("web.fragment.txt").toPath());
         Map<String, String> nameToCategory = new LinkedHashMap<>();
         Map<String, String> descriptionToName = new LinkedHashMap<>();

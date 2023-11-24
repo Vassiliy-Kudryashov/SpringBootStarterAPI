@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.file.Files;
@@ -23,11 +24,21 @@ import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 public class IOUtil {
-    static final boolean local = false;
+    public static final String IO_LOCAL_KEY = "springboot.io.local";
 
     public static List<String> readLinesFromSpringIO() throws IOException {
-        if (local) {
-            return Files.lines(new File("spring.io.txt").toPath()).collect(Collectors.toList());
+        if (Boolean.getBoolean(IO_LOCAL_KEY)) {
+            try {
+                URL resource = IOUtil.class.getResource("../spring.io.txt");
+                if (resource == null) {
+                    throw new IOException("Cannot find resource file spring.io.txt");
+                }
+                return Files.lines(new File(resource.toURI()).toPath()).collect(Collectors.toList());
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            } catch (URISyntaxException e) {
+                throw new IOException("Cannot read resource file", e);
+            }
         }
         HttpURLConnection connection = (HttpURLConnection) new URL("https://start.spring.io").openConnection();
         connection.setRequestProperty("ACCEPT", "text/plain");
@@ -41,6 +52,7 @@ public class IOUtil {
 
             String line = reader.readLine();
             while (line != null) {
+                lines.add(line);
                 line = reader.readLine();
             }
         } finally {

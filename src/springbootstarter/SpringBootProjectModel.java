@@ -1,6 +1,10 @@
 package springbootstarter;
 
 import springbootstarter.util.IOUtil;
+import springbootstarter.validation.StandardDependencyValidationProblem;
+import springbootstarter.validation.StandardParameterValidationProblem;
+import springbootstarter.validation.ValidationProblem;
+import springbootstarter.validation.Validator;
 
 import java.io.File;
 import java.io.IOException;
@@ -8,61 +12,94 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
+
+import static springbootstarter.Dictionary.*;
 
 public class SpringBootProjectModel {
     private static final String[][] HEADERS = {{"Rel", "Description", null}, {"Parameter", "Description", "Default value"}, {"Id", "Description", "Required version"}};
 
-    private final Map<String, String> descriptionDictionary = new HashMap<>();
-    private final EnumMap<StandardProjectParameter, String> defaults = new EnumMap<>(StandardProjectParameter.class);
-    private final Map<String, String> dependencyCompatibility = new LinkedHashMap<>();
 
     private final EnumMap<StandardProjectParameter, String> parameters = new EnumMap<>(StandardProjectParameter.class);
+    private final Set<ValidationProblem> problems = new HashSet<>();
 
     private SpringBootProjectModel() {
     }
 
-    //Auxiliary method
-    public Set<String> getDependencyKeys() {
-        return Collections.unmodifiableSet(dependencyCompatibility.keySet());
-    }
 
-    //Common description dictionary
-    public String getDescription(String id) {
-        return descriptionDictionary.get(id);
-    }
-
-    public void setParameterValue(StandardProjectParameter parameter, String value) {
-        if (value != null && !parameter.validate(value)) {
-            throw new IllegalArgumentException("'" + value + "' is invalid value for " + parameter);
-        }
+    public SpringBootProjectModel setParameterValue(StandardProjectParameter parameter, String value) {
         if (value == null || value.equals(defaults.get(parameter))) {
             parameters.remove(parameter);
         } else {
             parameters.put(parameter, value);
         }
-        //todo check if bootversion is compatible with desired dependencies, maybe add explicit validate() method
+        validate();
+        return this;
     }
 
-    public boolean addDependency(StandardProjectDependency dependency) {
+    private void validate() {
+        problems.clear();
+        String springBootVersion = getParameterValue(StandardProjectParameter.BOOT_VERSION);
+        if (!StandardProjectParameter.BOOT_VERSION.isValid(springBootVersion)) {
+            problems.add(new StandardParameterValidationProblem(StandardProjectParameter.BOOT_VERSION, "Invalid Spring Boot version: "  + springBootVersion));
+        }
+        for (Map.Entry<StandardProjectParameter, String> entry : parameters.entrySet()) {
+            StandardProjectParameter standardProjectParameter = entry.getKey();
+            if (standardProjectParameter == StandardProjectParameter.DEPENDENCIES) continue;
+            if (standardProjectParameter == StandardProjectParameter.BOOT_VERSION) continue;
+            if (!standardProjectParameter.isValid(entry.getValue())) {
+                problems.add(new StandardParameterValidationProblem(standardProjectParameter, "Invalid value: " + entry.getValue()));
+            }
+        }
+
+        for (StandardProjectDependency dependency : getDependencies()) {
+            if (!Validator.isDependencyCompatible(dependency, springBootVersion)) {
+                problems.add(new StandardDependencyValidationProblem(dependency, dependency.getName() + " is not compatible with Spring Boot version " + springBootVersion));
+            }
+        }
+    }
+
+    public Set<ValidationProblem> getProblems() {
+        return problems;
+    }
+
+    public SpringBootProjectModel addDependency(StandardProjectDependency dependency) {
+        Set<String> ids = getDependencyIds();
+        if (ids.add(dependency.getId())) {
+            storeDependencyIds(ids);
+            validate();
+        }
+        return this;
+    }
+
+    public SpringBootProjectModel removeDependency(StandardProjectDependency dependency) {
+        Set<String> ids = getDependencyIds();
+        if (ids.remove(dependency.getId())) {
+            storeDependencyIds(ids);
+            validate();
+        }
+        return this;
+    }
+
+    private void storeDependencyIds(Set<String> ids) {
+        StringJoiner joiner = new StringJoiner(",");
+        ids.forEach(joiner::add);
+        setParameterValue(StandardProjectParameter.DEPENDENCIES, joiner.toString());
+    }
+
+    private Set<String> getDependencyIds() {
         String dependencies = getParameterValue(StandardProjectParameter.DEPENDENCIES);
         Set<String> ids = new LinkedHashSet<>();
         if (dependencies != null && !dependencies.isEmpty()) {
             ids.addAll(Arrays.asList(dependencies.split(",")));
         }
-        if (!ids.add(dependency.getId())) {
-            return false;
-        }
-        StringJoiner joiner = new StringJoiner(",");
-        ids.forEach(joiner::add);
-        setParameterValue(StandardProjectParameter.DEPENDENCIES, joiner.toString());
-        return true;//todo return compatibility check
+        return ids;
     }
 
     public Map<StandardProjectParameter, String> getParameters() {
@@ -71,6 +108,10 @@ public class SpringBootProjectModel {
 
     public String getParameterValue(StandardProjectParameter parameter) {
         return parameters.containsKey(parameter) ? parameters.get(parameter) : defaults.get(parameter);
+    }
+
+    public boolean isValueDefault(StandardProjectParameter parameter) {
+        return Objects.equals(getParameterValue(parameter), defaults.get(parameter));
     }
 
     public Set<StandardProjectDependency> getDependencies() {
@@ -83,8 +124,9 @@ public class SpringBootProjectModel {
         return Collections.unmodifiableSet(set);
     }
 
-    public void setType(ProjectType type) {
+    public SpringBootProjectModel setType(ProjectType type) {
         setParameterValue(StandardProjectParameter.TYPE, type.getId());
+        return this;
     }
 
     public static SpringBootProjectModel initFromWeb() throws IOException {
@@ -122,22 +164,22 @@ public class SpringBootProjectModel {
                             if (first.endsWith(" *")) {
                                 first = first.substring(0, first.length() - 2);
                             }
-                            String descriptionPart = model.descriptionDictionary.get(first);
-                            model.descriptionDictionary.put(first, descriptionPart != null ? descriptionPart + " " + second : second);
+                            String descriptionPart = descriptionDictionary.get(first);
+                            descriptionDictionary.put(first, descriptionPart != null ? descriptionPart + " " + second : second);
                             break;
                         }
                         case 2: { // Parameters
-                            model.descriptionDictionary.put(first, second);
+                            descriptionDictionary.put(first, second);
                             if ("none".equals(third) || "no base dir".equals(third)) {
                                 third = "";
                             }
-                            model.defaults.put(StandardProjectParameter.find(first), third);
+                            defaults.put(StandardProjectParameter.find(first), third);
                             break;
                         }
                         case 3: { // Dependencies
-                            String descriptionPart = model.descriptionDictionary.get(first);
-                            model.descriptionDictionary.put(first, descriptionPart != null ? descriptionPart + " " + second : second);
-                            model.dependencyCompatibility.put(first, third);
+                            String descriptionPart = descriptionDictionary.get(first);
+                            descriptionDictionary.put(first, descriptionPart != null ? descriptionPart + " " + second : second);
+                            dependencyCompatibility.putIfAbsent(first, third);
                             break;
                         }
                     }
@@ -147,7 +189,8 @@ public class SpringBootProjectModel {
         return model;
     }
 
-    void downloadProjectFile(File target) throws IOException {
+    File downloadProjectFile(File target) throws IOException {
         IOUtil.downloadProjectFile(this, target);
+        return target;
     }
 }

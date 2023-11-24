@@ -11,20 +11,18 @@ import java.util.Random;
 public class ExampleStarter {
     public static void main(String[] args) throws IOException {
         Random random = new Random();
-        SpringBootProjectModel model = SpringBootProjectModel.initFromWeb();
-
-        model.setType(getRandomValue(ProjectType.values(), random));
-
-        model.setParameterValue(StandardProjectParameter.NAME, "TestProjectName");
-        model.setParameterValue(StandardProjectParameter.APPLICATION_NAME, "TestApp");
-        model.setParameterValue(StandardProjectParameter.GROUP_ID, "io.test.app");
+        SpringBootProjectModel model = SpringBootProjectModel.initFromWeb()
+            .setType(getRandomValue(ProjectType.values(), random))
+            .setParameterValue(StandardProjectParameter.NAME, "TestProjectName")
+            .setParameterValue(StandardProjectParameter.APPLICATION_NAME, "TestApp")
+            .setParameterValue(StandardProjectParameter.GROUP_ID, "io.test.app");
 
         List<StandardProjectDependency> dependencies = new ArrayList<>(Arrays.asList(StandardProjectDependency.values()));
         Collections.shuffle(dependencies);
         dependencies = dependencies.subList(0, random.nextInt(dependencies.size()));
         dependencies.forEach(dependency -> model.addDependency(dependency));
 
-        model.downloadProjectFile(new File("starter.zip"));
+        System.out.println(model.downloadProjectFile(new File("starter.zip")).getAbsolutePath() + " is ready");
     }
 
     private static <T> T getRandomValue(T[] array, Random random) {

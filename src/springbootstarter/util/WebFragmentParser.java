@@ -1,5 +1,6 @@
 package springbootstarter.util;
 
+import springbootstarter.Dictionary;
 import springbootstarter.SpringBootProjectModel;
 
 import java.io.File;
@@ -54,9 +55,9 @@ public class WebFragmentParser {
             descriptionToName.put(description, name);
         }
         SpringBootProjectModel model = SpringBootProjectModel.initFromWeb();
-        Set<String> dependencyKeys = model.getDependencyKeys();
+        Set<String> dependencyKeys = Dictionary.getDependencyKeys();
         for (String id : dependencyKeys) {
-            String description = model.getDescription(id);
+            String description = Dictionary.getDescription(id);
             String name = descriptionToName.get(description);
             String category = nameToCategory.get(name);
             if (name.endsWith(" ")) name = name.substring(0, name.length() - 1);

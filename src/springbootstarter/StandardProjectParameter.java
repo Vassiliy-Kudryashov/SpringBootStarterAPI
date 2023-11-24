@@ -1,6 +1,6 @@
 package springbootstarter;
 
-import springbootstarter.util.Validator;
+import springbootstarter.validation.Validator;
 
 import java.util.function.Function;
 
@@ -32,7 +32,7 @@ public enum StandardProjectParameter {
         this.validator = validator;
     }
 
-    boolean validate(String value) {
+    boolean isValid(String value) {
         return validator == null || validator.apply(value);
     }
 

@@ -1,9 +1,9 @@
-package springbootstarter.util;
+package springbootstarter.validation;
 
+import springbootstarter.Dictionary;
 import springbootstarter.ProjectType;
 import springbootstarter.StandardProjectDependency;
 
-import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 
@@ -11,8 +11,6 @@ public class Validator {
     public static final List<String> ALLOWED_JAVA_VERSIONS = Arrays.asList("8", "11", "17", "21");
     public static final List<String> ALLOWED_LANGUAGES = Arrays.asList("java", "kotlin", "groovy");
     public static final List<String> ALLOWED_PACKAGING = Arrays.asList("jar", "war");
-    public static final List<String> ALLOWED_SPRING_BOOT_VERSIONS = Arrays.asList(
-            "3.2.0 (SNAPSHOT)","3.2.0 (RC2)","3.1.6 (SNAPSHOT)","3.1.5","3.0.13 (SNAPSHOT)","3.0.12","2.7.18 (SNAPSHOT)","2.7.17");
 
     public static boolean isValidJavaVersion(String version) {
         return ALLOWED_JAVA_VERSIONS.contains(version);
@@ -27,7 +25,12 @@ public class Validator {
     }
 
     public static boolean isValidSpringBootVersion(String version) {
-        return ALLOWED_SPRING_BOOT_VERSIONS.contains(version);
+        try {
+            new Version(version);
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
     }
 
     public static boolean isValidProjectType(String id){
@@ -41,5 +44,22 @@ public class Validator {
 
     public static boolean isValidDependencyList(String dependencies) {
         return Arrays.stream(dependencies.split(",")).noneMatch(id -> StandardProjectDependency.find(id) == null);
+    }
+
+    public static boolean isDependencyCompatible(StandardProjectDependency dependency, String springBootVersion) {
+        Version bootVersion = new Version(springBootVersion);
+        String compatibility = Dictionary.getRawCompatibility(dependency);
+        if (compatibility != null) {
+            String[] split = compatibility.split(" and ");
+            for (String limit : split) {
+                if (limit.startsWith(">=") && new Version(limit.substring(2).trim()).compareTo(bootVersion) > 0) {
+                    return false;
+                }
+                if (limit.startsWith("<") && new Version(limit.substring(1).trim()).compareTo(bootVersion) <= 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

@@ -10,21 +10,11 @@ public class VersionsTest extends SpringBootTestCase{
     }
 
     public void testVersionCorrectness() {
-        try {
-            new Version("1.2.A");
-            fail();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        try {
-            new Version("1.2.3-SNAPSHAPE");
-            fail();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+        assertFails(() -> new Version("1.2.A"));
+        assertFails(() -> new Version("1.2.3-SNAPSHAPE"));
+
         new Version("1.2.3-SNAPSHOT");
         new Version("1.2.3-M1");
         new Version("1.2.333-RELEASE");
     }
-
 }

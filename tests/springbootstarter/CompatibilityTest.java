@@ -24,5 +24,7 @@ public class CompatibilityTest extends SpringBootTestCase {
         model.setParameterValue(StandardProjectParameter.BOOT_VERSION, "3.2.0-M1");
         assert (!model.getProblems().isEmpty());
         model.getProblems().forEach(System.out::println);
+
+        model.setType(ProjectType.MAVEN_ARCHIVE);
     }
 }

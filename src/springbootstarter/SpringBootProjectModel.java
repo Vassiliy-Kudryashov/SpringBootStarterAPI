@@ -47,15 +47,21 @@ public class SpringBootProjectModel {
         problems.clear();
         String springBootVersion = getParameterValue(StandardProjectParameter.BOOT_VERSION);
         if (!StandardProjectParameter.BOOT_VERSION.isValid(springBootVersion)) {
-            problems.add(new StandardParameterValidationProblem(StandardProjectParameter.BOOT_VERSION, "Invalid Spring Boot version: "  + springBootVersion));
+            problems.add(new StandardParameterValidationProblem(StandardProjectParameter.BOOT_VERSION, "Invalid Spring Boot version: " + springBootVersion));
+            return;
         }
         for (Map.Entry<StandardProjectParameter, String> entry : parameters.entrySet()) {
             StandardProjectParameter standardProjectParameter = entry.getKey();
             if (standardProjectParameter == StandardProjectParameter.DEPENDENCIES) continue;
             if (standardProjectParameter == StandardProjectParameter.BOOT_VERSION) continue;
             if (!standardProjectParameter.isValid(entry.getValue())) {
-                problems.add(new StandardParameterValidationProblem(standardProjectParameter, "Invalid value: " + entry.getValue()));
+                problems.add(new StandardParameterValidationProblem(standardProjectParameter, "Invalid '" + standardProjectParameter + "' value: [" + entry.getValue()+"]"));
             }
+        }
+        String dependencyRawValue = getParameterValue(StandardProjectParameter.DEPENDENCIES);
+        if (dependencyRawValue != null && !dependencyRawValue.isEmpty() && !StandardProjectParameter.DEPENDENCIES.isValid(dependencyRawValue)) {
+            problems.add(new StandardParameterValidationProblem(StandardProjectParameter.DEPENDENCIES, "Dependency list contains unknown ID: " + dependencyRawValue));
+            return;
         }
 
         for (StandardProjectDependency dependency : getDependencies()) {
